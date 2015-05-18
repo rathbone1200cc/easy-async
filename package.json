@@ -1,0 +1,31 @@
+{
+  "name": "easy-async",
+  "version": "0.0.0",
+  "description": "a library to manage ansynchronous control flow, similar to Promises/A+/q, but not exactly the same.",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha -R spec test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rathbone1200cc/easy-async"
+  },
+  "keywords": [
+    "async",
+    "promises",
+    "series",
+    "parallel",
+    "throttle",
+    "timeout"
+  ],
+  "author": "rathbone1200cc",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rathbone1200cc/easy-async/issues"
+  },
+  "homepage": "https://github.com/rathbone1200cc/easy-async",
+  "devDependencies": {
+    "lodash": "3.8.0",
+    "mocha": "2.2.5"
+  }
+}
