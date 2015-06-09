@@ -1,7 +1,7 @@
 'use strict';
 
 var 
-sf = require('./index.js'),
+ea = require('./index.js'),
 _ = require('lodash');
 
 function cl(msg) {console.log(msg);}
@@ -36,27 +36,27 @@ describe('easy_async', function () {
 
   it('starts the async fn', function(done){
     var cbHash = {};
-    sf.start(genRandAsync('a', 10, cbHash))
+    ea.start(genRandAsync('a', 10, cbHash))
     .then(genHashCheck(cbHash, ['a'], done));
   });
 
   it('multiple series fn', function(done){
     var cbHash = {};
-    sf.start(genRandAsync('a', 10, cbHash))
+    ea.start(genRandAsync('a', 10, cbHash))
     .then(genRandAsync('b', 10, cbHash))
     .then(genHashCheck(cbHash, ['a', 'b'], done));
   });
 
   it('add fn to series, but not using chaining', function(done){
     var cbHash = {};
-    var series = sf.start(genRandAsync('a', 10, cbHash));
+    var series = ea.start(genRandAsync('a', 10, cbHash));
     series.then(genRandAsync('b', 10, cbHash));
     series.then(genHashCheck(cbHash, ['a', 'b'], done));
   });
 
   it('add fn after earlier fn already called back', function(done){
     var cbHash = {};
-    var series = sf.start(genRandAsync('a', 10, cbHash));
+    var series = ea.start(genRandAsync('a', 10, cbHash));
     series.then(function(callback){
       series.then(genRandAsync('b', 10, cbHash));
       series.then(genHashCheck(cbHash, ['a', 'b'], done));
@@ -66,7 +66,7 @@ describe('easy_async', function () {
 
   it('mix up function additions', function(done){
     var cbHash = {};
-    var series = sf.start(genRandAsync('a', 10, cbHash));
+    var series = ea.start(genRandAsync('a', 10, cbHash));
     var later;
     series.then(function(callback){
       later = series
@@ -85,7 +85,7 @@ describe('easy_async', function () {
 
   it('restart with function additions', function(done){
     var cbHash = {};
-    var series = sf.start(genRandAsync('a', 10, cbHash));
+    var series = ea.start(genRandAsync('a', 10, cbHash));
     series.then(function(callback){
       callback();
       process.nextTick(function(){
@@ -97,7 +97,7 @@ describe('easy_async', function () {
 
   it('restart with "and" function additions', function(done){
     var cbHash = {};
-    var series = sf.start(genRandAsync('a', 10, cbHash));
+    var series = ea.start(genRandAsync('a', 10, cbHash));
     series.then(function(callback){
       callback();
       process.nextTick(function(){
@@ -107,8 +107,19 @@ describe('easy_async', function () {
     });
   });
 
+  it('start with multiple and functions', function(done){
+    var cbHash = {};
+    var series = ea.start(function(callback){callback();});
+    series.and(genRandAsync('a', 10, cbHash));
+    series.and(genRandAsync('b', 10, cbHash));
+    series.and(genRandAsync('c', 10, cbHash));
+    series.and(genRandAsync('d', 10, cbHash));
+    series.and(genRandAsync('e', 10, cbHash));
+    series.then(genHashCheck(cbHash, ['a', 'b', 'c', 'd', 'e'], done));
+  });
+
   it('simple error caught', function(done){
-    sf.start(function(){
+    ea.start(function(){
       throw new Error('this should be caught and handled gracefully');
     })
     .then(function(){ done('this point should not be reached');})
@@ -116,7 +127,7 @@ describe('easy_async', function () {
   });
 
   it('simple non-thrown error captured', function(done){
-    sf.start(function(callback){
+    ea.start(function(callback){
       callback('this captured and handled gracefully');
     })
     .then(function(){ done('this point should not be reached');})
@@ -124,7 +135,7 @@ describe('easy_async', function () {
   });
 
   it('simple non-thrown error captured from nested function', function(done){
-    sf.start(function(callback){
+    ea.start(function(callback){
       process.nextTick(function(){
         callback('this captured and handled gracefully');
       });
@@ -134,7 +145,7 @@ describe('easy_async', function () {
   });
 
   it('error caught after callback', function(done){
-    sf.start(function(callback){
+    ea.start(function(callback){
       callback();
       throw new Error('this should be caught and handled gracefully');
     })
@@ -143,7 +154,7 @@ describe('easy_async', function () {
   });
 
   it('handle multiple calls back', function(done){
-    sf.start(function(callback){
+    ea.start(function(callback){
       callback();
       callback();
     })

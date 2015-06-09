@@ -24,43 +24,43 @@ exports.start = function(firstFn) {
   };
 
   function dispatch(opt) { // call the target function
-    //currOpt = opt;  // remove this - replace with better series tracking
     opt.open = opt.open || 0;
     opt.callbacks = opt.callbacks || [false];
 
     function dispatchInternal(fnIndex) {
-      opt.next[fnIndex](function(err) {
-        if (opt.callbacks[fnIndex]) {
-          throw new Error('function called back twice!');
-        } // helper, can be removed
-        opt.callbacks[fnIndex] = true;
+      opt.open += 1;
+      process.nextTick(function(){
+        try {
+          opt.next[fnIndex](function(err) {
+            if (opt.callbacks[fnIndex]) {
+              throw new Error('function called back twice!');
+            } // helper, can be removed
+            opt.callbacks[fnIndex] = true;
 
-        if (err) {
-          return dynOpt.onError(err);
+            if (err) {
+              return dynOpt.onError(err);
+            }
+
+            opt.open -= 1;
+
+            if (opt.open === 0) { // start the next fn, if possible
+              opt.complete = true;
+              if (opt.nextOpt) {
+                //opt.hasCalledNext = true;  // helper, can be removed
+                dispatch(opt.nextOpt);
+              }
+            }
+          });
         }
-
-        opt.open -= 1;
-
-        if (opt.open === 0) { // start the next fn, if possible
-          opt.complete = true;
-          if (opt.nextOpt) {
-            //opt.hasCalledNext = true;  // helper, can be removed
-            dispatch(opt.nextOpt);
-          }
+        catch (err) {
+          opt.open -= 1;
+          dynOpt.onError(err);
         }
       });
     }
 
-    for (opt.fnIndex = opt.fnIndex || 0; opt.fnIndex < opt.next.length; opt
-      .fnIndex += 1) {
-      opt.open += 1;
-      try {
-        dispatchInternal(opt.fnIndex);
-      }
-      catch (err) {
-        opt.open -= 1;
-        dynOpt.onError(err);
-      }
+    for (opt.fnIndex = opt.fnIndex || 0; opt.fnIndex < opt.next.length; opt.fnIndex += 1) {
+      dispatchInternal(opt.fnIndex);
     }
   }
 
@@ -69,9 +69,7 @@ exports.start = function(firstFn) {
     return {
       // set the next fn, allowing the tail to advance
       then: function(nextTargetFn) {
-        tailOpt.nextOpt = {
-          //hasCalledNext: false,
-        };
+        tailOpt.nextOpt = {};
         var needsDispatch = tailOpt.complete ? true : false;
         if (tailOpt.fnIndex) {
           dispatch(tailOpt);
