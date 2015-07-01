@@ -6,7 +6,7 @@ Like Promises, you get a "control object" that wraps an asynchronous task. The c
 
 Like async.js, easy-async will NOT attempt to plumb arguments through your tasks.  Also like async.js, the tasks will fail fast if any task produces an error.
 
-Let's look at some examples.  You can see the examples [together here](easy-async/blob/master/example.js)
+Let's look at some examples.  You can see the examples [together here](example.js)
 
 Tasks receive only one parameter, the callback provided by easy-async.  Each task must call the callback, and easy-async will only look for one single argument and assume it's an error.
 
