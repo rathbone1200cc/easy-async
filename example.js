@@ -10,6 +10,13 @@ var exampleTask = function(callback){
   }, 1000);
 };
 
+var exampleErrorTask = function(callback){
+  console.log('starting task');
+  setTimeout(function(){
+    callback(new Error('BOOM!'));
+  }, 1000);
+};
+
 /////////////////////////////////////////
 // 3 tasks in series, 3 tasks in parallel
 /////////////////////////////////////////
@@ -31,6 +38,20 @@ function startParallelWork() {
   .and(exampleTask)
   .then(function() {
     console.log('continuing after tasks in parallel');
+    startRiskyWork();
+  });
+}
+
+function startParallelWork() {
+  easyAsync.start(exampleTask)
+  .and(exampleTask)
+  .and(exampleErrorTask)
+  .then(function() {
+    console.log('continuing after risky work');
+  })
+  .onError(function(err){
+    console.log('error handler received an error');
+    console.error(err);
   });
 }
 
