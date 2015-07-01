@@ -1,6 +1,6 @@
 {
   "name": "easy-async",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "a library to manage ansynchronous control flow, similar to Promises/A+/q, but not exactly the same.",
   "main": "index.js",
   "scripts": {
