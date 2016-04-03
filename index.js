@@ -1,26 +1,20 @@
 'use strict';
 
-var defaultErrorHandler = function(err, msg) {
-  if (msg) {
-    console.error(msg);
-  }
-  if (err.stack) {
-    console.error(err.stack);
-  }
-  else {
-    console.error(err);
-  }
-};
-
 exports.start = function(firstFn) {
 
   var dynOpt = {
-    onError: defaultErrorHandler
+    // default error handler will throw errors, to fail fast
+    // (and encourage explicit error handling)
+    onError: function (err) {
+      throw err;
+    }
   };
+
   var headOpt, tailOpt;
   headOpt = tailOpt = {
-    //key: 'head',
-    next: [firstFn]
+    next: [firstFn || function (callback) {
+      return callback();
+    }]
   };
 
   function dispatch(opt) { // call the target function
@@ -68,7 +62,7 @@ exports.start = function(firstFn) {
 
     return {
       // set the next fn, allowing the tail to advance
-      then: function(nextTargetFn) {
+      thenStart: function(nextTargetFn) {
         tailOpt.nextOpt = {};
         var needsDispatch = tailOpt.complete ? true : false;
         if (tailOpt.fnIndex) {
@@ -83,9 +77,9 @@ exports.start = function(firstFn) {
         }
         return tail;
       },
-      and: function(nextTargetFn, fnOpt) {
+      andStart: function(nextTargetFn, fnOpt) {
         if (tailOpt.complete) {
-          return tail.then(nextTargetFn, fnOpt);
+          return tail.thenStart(nextTargetFn, fnOpt);
         } // restart new step
         tailOpt.next.push(nextTargetFn);
         if (tailOpt.fnIndex) {

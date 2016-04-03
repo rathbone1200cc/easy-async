@@ -1,18 +1,17 @@
 'use strict';
 
-var 
-ea = require('./index.js'),
-_ = require('lodash');
+var ea = require('./index.js');
+var _ = require('lodash');
 
-function cl(msg) {console.log(msg);}
+// function cl(msg) {console.log(msg);}
 
 function genRandAsync(key, msLimit, cbHash) {
   var f = function(callback){
     if (cbHash[key]){throw new Error(key + ' already called!');}
-    cl('starting ' + key);
+    // cl('starting ' + key);
     var ms = Math.ceil(Math.random() * msLimit);
     setTimeout(function(){
-      cl('finishing ' + key);
+      // cl('finishing ' + key);
       if (cbHash[key]){throw new Error(key + ' already called back!');}
       cbHash[key] = true;
       callback();
@@ -37,29 +36,36 @@ describe('easy_async', function () {
   it('starts the async fn', function(done){
     var cbHash = {};
     ea.start(genRandAsync('a', 10, cbHash))
-    .then(genHashCheck(cbHash, ['a'], done));
+    .thenStart(genHashCheck(cbHash, ['a'], done));
+  });
+
+  it('allow calls to start with no fn', function(done){
+    var cbHash = {};
+    ea.start()
+    .thenStart(genRandAsync('a', 10, cbHash))
+    .thenStart(genHashCheck(cbHash, ['a'], done));
   });
 
   it('multiple series fn', function(done){
     var cbHash = {};
     ea.start(genRandAsync('a', 10, cbHash))
-    .then(genRandAsync('b', 10, cbHash))
-    .then(genHashCheck(cbHash, ['a', 'b'], done));
+    .thenStart(genRandAsync('b', 10, cbHash))
+    .thenStart(genHashCheck(cbHash, ['a', 'b'], done));
   });
 
   it('add fn to series, but not using chaining', function(done){
     var cbHash = {};
     var series = ea.start(genRandAsync('a', 10, cbHash));
-    series.then(genRandAsync('b', 10, cbHash));
-    series.then(genHashCheck(cbHash, ['a', 'b'], done));
+    series.thenStart(genRandAsync('b', 10, cbHash));
+    series.thenStart(genHashCheck(cbHash, ['a', 'b'], done));
   });
 
   it('add fn after earlier fn already called back', function(done){
     var cbHash = {};
     var series = ea.start(genRandAsync('a', 10, cbHash));
-    series.then(function(callback){
-      series.then(genRandAsync('b', 10, cbHash));
-      series.then(genHashCheck(cbHash, ['a', 'b'], done));
+    series.thenStart(function(callback){
+      series.thenStart(genRandAsync('b', 10, cbHash));
+      series.thenStart(genHashCheck(cbHash, ['a', 'b'], done));
       callback();
     });
   });
@@ -68,17 +74,17 @@ describe('easy_async', function () {
     var cbHash = {};
     var series = ea.start(genRandAsync('a', 10, cbHash));
     var later;
-    series.then(function(callback){
+    series.thenStart(function(callback){
       later = series
-        .then(genRandAsync('b', 10, cbHash))
-        .then(genRandAsync('c', 10, cbHash));
+        .thenStart(genRandAsync('b', 10, cbHash))
+        .thenStart(genRandAsync('c', 10, cbHash));
       callback();
     });
-    series.then(function(callback){
-      later.then(genRandAsync('d', 10, cbHash));
+    series.thenStart(function(callback){
+      later.thenStart(genRandAsync('d', 10, cbHash));
       series
-      .then(genRandAsync('e', 10, cbHash))
-      .then(genHashCheck(cbHash, ['a', 'b', 'c', 'd', 'e'], done));
+      .thenStart(genRandAsync('e', 10, cbHash))
+      .thenStart(genHashCheck(cbHash, ['a', 'b', 'c', 'd', 'e'], done));
       callback();
     });
   });
@@ -86,11 +92,11 @@ describe('easy_async', function () {
   it('restart with function additions', function(done){
     var cbHash = {};
     var series = ea.start(genRandAsync('a', 10, cbHash));
-    series.then(function(callback){
+    series.thenStart(function(callback){
       callback();
       process.nextTick(function(){
-        series.then(genRandAsync('b', 10, cbHash));
-        series.then(genHashCheck(cbHash, ['a', 'b'], done));
+        series.thenStart(genRandAsync('b', 10, cbHash));
+        series.thenStart(genHashCheck(cbHash, ['a', 'b'], done));
       });
     });
   });
@@ -98,11 +104,11 @@ describe('easy_async', function () {
   it('restart with "and" function additions', function(done){
     var cbHash = {};
     var series = ea.start(genRandAsync('a', 10, cbHash));
-    series.then(function(callback){
+    series.thenStart(function(callback){
       callback();
       process.nextTick(function(){
-        series.and(genRandAsync('b', 10, cbHash));
-        series.then(genHashCheck(cbHash, ['a', 'b'], done));
+        series.andStart(genRandAsync('b', 10, cbHash));
+        series.thenStart(genHashCheck(cbHash, ['a', 'b'], done));
       });
     });
   });
@@ -110,19 +116,19 @@ describe('easy_async', function () {
   it('start with multiple and functions', function(done){
     var cbHash = {};
     var series = ea.start(function(callback){callback();});
-    series.and(genRandAsync('a', 10, cbHash));
-    series.and(genRandAsync('b', 10, cbHash));
-    series.and(genRandAsync('c', 10, cbHash));
-    series.and(genRandAsync('d', 10, cbHash));
-    series.and(genRandAsync('e', 10, cbHash));
-    series.then(genHashCheck(cbHash, ['a', 'b', 'c', 'd', 'e'], done));
+    series.andStart(genRandAsync('a', 10, cbHash));
+    series.andStart(genRandAsync('b', 10, cbHash));
+    series.andStart(genRandAsync('c', 10, cbHash));
+    series.andStart(genRandAsync('d', 10, cbHash));
+    series.andStart(genRandAsync('e', 10, cbHash));
+    series.thenStart(genHashCheck(cbHash, ['a', 'b', 'c', 'd', 'e'], done));
   });
 
   it('simple error caught', function(done){
     ea.start(function(){
       throw new Error('this should be caught and handled gracefully');
     })
-    .then(function(){ done('this point should not be reached');})
+    .thenStart(function(){ done('this point should not be reached');})
     .onError(function(){done();});
   });
 
@@ -130,7 +136,7 @@ describe('easy_async', function () {
     ea.start(function(callback){
       callback('this captured and handled gracefully');
     })
-    .then(function(){ done('this point should not be reached');})
+    .thenStart(function(){ done('this point should not be reached');})
     .onError(function(){done();});
   });
 
@@ -140,7 +146,7 @@ describe('easy_async', function () {
         callback('this captured and handled gracefully');
       });
     })
-    .then(function(){ done('this point should not be reached');})
+    .thenStart(function(){ done('this point should not be reached');})
     .onError(function(){done();});
   });
 
@@ -149,7 +155,7 @@ describe('easy_async', function () {
       callback();
       throw new Error('this should be caught and handled gracefully');
     })
-    .then(function(){})
+    .thenStart(function(){})
     .onError(function(){done();});
   });
 
@@ -158,7 +164,7 @@ describe('easy_async', function () {
       callback();
       callback();
     })
-    //.then(function(callback){ done();});  
+    //.thenStart(function(callback){ done();});
     // this will also work, which is the nature of the double callback error
     .onError(function(){done();});
   });
