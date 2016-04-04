@@ -17,13 +17,14 @@ exports.start = function (firstFn) {
     }]
   };
 
-  var dispatch = function (opt) { // call the target function
+  // call the target function
+  var dispatch = function (opt) {
     opt.open = opt.open || 0;
     opt.callbacks = opt.callbacks || [false];
 
     var dispatchInternal = function (fnIndex) {
       opt.open += 1;
-      process.nextTick(function () {
+      setImmediate(function () {
         try {
           opt.next[fnIndex](function (err) {
             if (opt.callbacks[fnIndex]) {
@@ -57,10 +58,14 @@ exports.start = function (firstFn) {
     }
   };
 
-  process.nextTick(function () { // nextTick to be nice to the event loop
+  // start the first task
+  setImmediate(function () { // setImmediate to be nice to the event loop
     dispatch(headOpt);
   });
 
+  // the 'tail' is the control object
+  // that closes over the necessary context
+  // to allow more tasks to be added
   var tail;
   var makeTail = function () {
     return {
@@ -97,6 +102,5 @@ exports.start = function (firstFn) {
     };
   };
   tail = makeTail();
-
   return tail;
 };

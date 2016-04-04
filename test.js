@@ -136,39 +136,33 @@ describe('easy_async', function () {
   });
 
   it('simple error caught', function (done) {
+    var err = new Error('this should be caught and handled gracefully');
     ea.start(function () {
-      throw new Error('this should be caught and handled gracefully');
+      throw err;
     })
     .thenStart(function () {
       done('this point should not be reached');
     })
-    .onError(function () {
+    .onError(function (handledErr) {
+      if (err !== handledErr) {
+        done(new Error('error not passed to handler'));
+      }
       done();
     });
   });
 
   it('simple non-thrown error captured', function (done) {
+    var errMsg = 'this captured and handled gracefully';
     ea.start(function (callback) {
-      callback('this captured and handled gracefully');
+      callback(errMsg);
     })
     .thenStart(function () {
       done('this point should not be reached');
     })
-    .onError(function () {
-      done();
-    });
-  });
-
-  it('simple non-thrown error captured from nested function', function (done) {
-    ea.start(function (callback) {
-      process.nextTick(function () {
-        callback('this captured and handled gracefully');
-      });
-    })
-    .thenStart(function () {
-      done('this point should not be reached');
-    })
-    .onError(function () {
+    .onError(function (err) {
+      if (err !== errMsg) {
+        done(new Error('error message not passed to handler'));
+      }
       done();
     });
   });
@@ -178,13 +172,15 @@ describe('easy_async', function () {
       callback();
       throw new Error('this should be caught and handled gracefully');
     })
-    .thenStart(function () {})
+    .thenStart(function () {
+      done(new Error('error handler should have been called, and this point not reached.'));
+    })
     .onError(function () {
       done();
     });
   });
 
-  it('handle multiple calls back', function (done) {
+  it('handle error of multiple calls back', function (done) {
     ea.start(function (callback) {
       callback();
       callback();
