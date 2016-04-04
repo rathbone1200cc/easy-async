@@ -22,21 +22,21 @@ var exampleErrorTask = function(callback){
 /////////////////////////////////////////
 
 easyAsync.start(exampleTask)
-.then(exampleTask)
-.then(exampleTask)
-.then(function() {
+.thenStart(exampleTask)
+.thenStart(exampleTask)
+.thenStart(function() {
   console.log('continuing after tasks in series');
   startParallelWork(); // passes control on to next example
 });
 
-// "then" used above for tasks in series,
-// "and" used below for tasks in parallel.
+// "thenStart" used above for tasks in series,
+// "andStart" used below for tasks in parallel.
 
 function startParallelWork() {
   easyAsync.start(exampleTask)
-  .and(exampleTask)
-  .and(exampleTask)
-  .then(function() {
+  .andStart(exampleTask)
+  .andStart(exampleTask)
+  .thenStart(function() {
     console.log('continuing after tasks in parallel');
     startRiskyWork();
   });
@@ -44,9 +44,9 @@ function startParallelWork() {
 
 function startParallelWork() {
   easyAsync.start(exampleTask)
-  .and(exampleTask)
-  .and(exampleErrorTask)
-  .then(function() {
+  .andStart(exampleTask)
+  .andStart(exampleErrorTask)
+  .thenStart(function() {
     console.log('continuing after risky work');
   })
   .onError(function(err){

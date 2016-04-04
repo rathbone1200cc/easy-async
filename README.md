@@ -25,21 +25,21 @@ Tasks receive only one parameter, the callback provided by easy-async.  Each tas
       }, 1000);
     };
 
-To run through tasks in series, get the control object with 'start', then line up tasks with the 'then' method on the control object:
+To run through tasks in series, get the control object with 'start', then line up tasks with the 'thenStart' method on the control object:
 
     easyAsync.start(exampleTask)
-    .then(exampleTask)
-    .then(exampleTask)
-    .then(function() {
+    .thenStart(exampleTask)
+    .thenStart(exampleTask)
+    .thenStart(function() {
       console.log('continuing after tasks in series');
     });
 
-To run tasks in parallel, use the 'and' method on the control object:
+To run tasks in parallel, use the 'andStart' method on the control object:
 
     easyAsync.start(exampleTask)
-    .and(exampleTask)
-    .and(exampleTask)
-    .then(function() {
+    .andStart(exampleTask)
+    .andStart(exampleTask)
+    .thenStart(function() {
       console.log('continuing after tasks in parallel');
     });
 
@@ -47,9 +47,9 @@ To attach an error handler, use the 'onError' method on the control object:
 
 
     easyAsync.start(exampleTask)
-    .and(exampleTask)
-    .and(exampleErrorTask)
-    .then(function() {
+    .andStart(exampleTask)
+    .andStart(exampleErrorTask)
+    .thenStart(function() {
       console.log('continuing after risky work');
     })
     .onError(function(err){
