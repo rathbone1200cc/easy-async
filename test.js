@@ -4,31 +4,30 @@
 var ea = require('./index.js');
 var _ = require('lodash');
 
-// function cl(msg) {console.log(msg);}
-
-var genRandAsync = function (key, msLimit, cbHash) {
+var randAsync = function (key, msLimit, cbHash, cbArray) {
+  cbHash = cbHash || {};
+  cbArray = cbArray || [];
   var f = function (callback) {
     if (cbHash[key]) {
       throw new Error(key + ' already called!');
     }
-    // cl('starting ' + key);
     var ms = Math.ceil(Math.random() * msLimit);
     setTimeout(function () {
-      // cl('finishing ' + key);
       if (cbHash[key]) {
         throw new Error(key + ' already called back!');
       }
       cbHash[key] = true;
+      cbArray.push(key);
       callback();
     }, ms);
   };
-  f.key = key;
   return f;
 };
 
-var genHashCheck = function (hash, keys, callback) {
-  return function () {
-    var missing = _.filter(keys, function (key) {
+var hashCheck = function (hash, keyChars, outerCallback) {
+  return function (innerCallback) {
+    var callback = outerCallback || innerCallback;
+    var missing = _.filter(keyChars, function (key) {
       return !hash[key];
     });
     if (missing.length > 0) {
@@ -40,84 +39,102 @@ var genHashCheck = function (hash, keys, callback) {
   };
 };
 
+var arrayCheck = function (array, keyChars, outerCallback) {
+  return function (innerCallback) {
+    var callback = outerCallback || innerCallback;
+    var arrayAsString = array.join('');
+    if (arrayAsString === keyChars) {
+      return callback();
+    }
+    return callback(new Error('expecting ' + keyChars + ' but found ' + arrayAsString));
+  };
+};
+
 describe('easy_async', function () {
 
   it('starts the async fn', function (done) {
     var cbHash = {};
-    ea.start(genRandAsync('a', 10, cbHash))
-    .thenStart(genHashCheck(cbHash, ['a'], done));
+    ea.start(randAsync('a', 10, cbHash))
+    .thenStart(hashCheck(cbHash, 'a', done));
   });
 
   it('allow calls to start with no fn', function (done) {
     var cbHash = {};
     ea.start()
-    .thenStart(genRandAsync('a', 10, cbHash))
-    .thenStart(genHashCheck(cbHash, ['a'], done));
+    .andStart(randAsync('a', 10, cbHash))
+    .thenStart(randAsync('b', 10, cbHash))
+    .andStart(randAsync('c', 10, cbHash))
+    .thenStart(hashCheck(cbHash, 'abc', done));
   });
 
   it('multiple series fn', function (done) {
-    var cbHash = {};
-    ea.start(genRandAsync('a', 10, cbHash))
-    .thenStart(genRandAsync('b', 10, cbHash))
-    .thenStart(genHashCheck(cbHash, ['a', 'b'], done));
+    var cbArray = [];
+    ea.start(randAsync('a', 10, null, cbArray))
+    .thenStart(randAsync('b', 10, null, cbArray))
+    .thenStart(randAsync('c', 10, null, cbArray))
+    .thenStart(randAsync('d', 10, null, cbArray))
+    .thenStart(randAsync('e', 10, null, cbArray))
+    .thenStart(randAsync('f', 10, null, cbArray))
+    .thenStart(randAsync('g', 10, null, cbArray))
+    .thenStart(arrayCheck(cbArray, 'abcdefg', done));
   });
 
   it('add fn to series, but not using chaining', function (done) {
-    var cbHash = {};
-    var series = ea.start(genRandAsync('a', 10, cbHash));
-    series.thenStart(genRandAsync('b', 10, cbHash));
-    series.thenStart(genHashCheck(cbHash, ['a', 'b'], done));
+    var cbArray = [];
+    var series = ea.start(randAsync('a', 10, null, cbArray));
+    series.thenStart(randAsync('b', 10, null, cbArray));
+    series.thenStart(arrayCheck(cbArray, 'ab', done));
   });
 
   it('add fn after earlier fn already called back', function (done) {
     var cbHash = {};
-    var series = ea.start(genRandAsync('a', 10, cbHash));
+    var series = ea.start(randAsync('a', 10, cbHash));
     series.thenStart(function (callback) {
-      series.thenStart(genRandAsync('b', 10, cbHash));
-      series.thenStart(genHashCheck(cbHash, ['a', 'b'], done));
+      series.thenStart(randAsync('b', 10, cbHash));
+      series.thenStart(hashCheck(cbHash, 'ab', done));
       callback();
     });
   });
 
   it('mix up function additions', function (done) {
     var cbHash = {};
-    var series = ea.start(genRandAsync('a', 10, cbHash));
+    var series = ea.start(randAsync('a', 10, cbHash));
     var later;
     series.thenStart(function (callback) {
       later = series
-        .thenStart(genRandAsync('b', 10, cbHash))
-        .thenStart(genRandAsync('c', 10, cbHash));
+        .thenStart(randAsync('b', 10, cbHash))
+        .thenStart(randAsync('c', 10, cbHash));
       callback();
     });
     series.thenStart(function (callback) {
-      later.thenStart(genRandAsync('d', 10, cbHash));
+      later.thenStart(randAsync('d', 10, cbHash));
       series
-      .thenStart(genRandAsync('e', 10, cbHash))
-      .thenStart(genHashCheck(cbHash, ['a', 'b', 'c', 'd', 'e'], done));
+      .thenStart(randAsync('e', 10, cbHash))
+      .thenStart(hashCheck(cbHash, 'abcde', done));
       callback();
     });
   });
 
   it('restart with function additions', function (done) {
     var cbHash = {};
-    var series = ea.start(genRandAsync('a', 10, cbHash));
+    var series = ea.start(randAsync('a', 10, cbHash));
     series.thenStart(function (callback) {
       callback();
       process.nextTick(function () {
-        series.thenStart(genRandAsync('b', 10, cbHash));
-        series.thenStart(genHashCheck(cbHash, ['a', 'b'], done));
+        series.thenStart(randAsync('b', 10, cbHash));
+        series.thenStart(hashCheck(cbHash, 'ab', done));
       });
     });
   });
 
-  it('restart with "and" function additions', function (done) {
+  it('restart with "andStart" function additions', function (done) {
     var cbHash = {};
-    var series = ea.start(genRandAsync('a', 10, cbHash));
+    var series = ea.start(randAsync('a', 10, cbHash));
     series.thenStart(function (callback) {
       callback();
       process.nextTick(function () {
-        series.andStart(genRandAsync('b', 10, cbHash));
-        series.thenStart(genHashCheck(cbHash, ['a', 'b'], done));
+        series.andStart(randAsync('b', 10, cbHash));
+        series.thenStart(hashCheck(cbHash, 'ab', done));
       });
     });
   });
@@ -127,68 +144,93 @@ describe('easy_async', function () {
     var series = ea.start(function (callback) {
       callback();
     });
-    series.andStart(genRandAsync('a', 10, cbHash));
-    series.andStart(genRandAsync('b', 10, cbHash));
-    series.andStart(genRandAsync('c', 10, cbHash));
-    series.andStart(genRandAsync('d', 10, cbHash));
-    series.andStart(genRandAsync('e', 10, cbHash));
-    series.thenStart(genHashCheck(cbHash, ['a', 'b', 'c', 'd', 'e'], done));
+    series.andStart(randAsync('a', 10, cbHash));
+    series.andStart(randAsync('b', 10, cbHash));
+    series.andStart(randAsync('c', 10, cbHash));
+    series.andStart(randAsync('d', 10, cbHash));
+    series.andStart(randAsync('e', 10, cbHash));
+    series.thenStart(hashCheck(cbHash, 'abcde', done));
   });
 
-  it('simple error caught', function (done) {
-    var err = new Error('this should be caught and handled gracefully');
-    ea.start(function () {
-      throw err;
-    })
-    .thenStart(function () {
-      done('this point should not be reached');
-    })
-    .onError(function (handledErr) {
-      if (err !== handledErr) {
-        done(new Error('error not passed to handler'));
+  it('thrown error not caught', function (done) {
+    var err = new Error('this should be not be caught');
+    try {
+      ea.start(function () {
+        throw err;
+      })
+      .thenStart(function () {
+        done('this point should not be reached');
+      })
+      .onError(function () {
+        done(new Error('thrown error should not have been caught'));
+      });
+    } catch (caughtErr) {
+      if (caughtErr !== err) {
+        throw new Error('unexpected error caught');
       }
       done();
-    });
+    }
   });
 
-  it('simple non-thrown error captured', function (done) {
-    var errMsg = 'this captured and handled gracefully';
-    ea.start(function (callback) {
-      callback(errMsg);
-    })
-    .thenStart(function () {
-      done('this point should not be reached');
-    })
-    .onError(function (err) {
-      if (err !== errMsg) {
-        done(new Error('error message not passed to handler'));
-      }
-      done();
-    });
-  });
+  describe('wrapWithTry', function () {
 
-  it('error caught after callback', function (done) {
-    ea.start(function (callback) {
-      callback();
-      throw new Error('this should be caught and handled gracefully');
-    })
-    .thenStart(function () {
-      done(new Error('error handler should have been called, and this point not reached.'));
-    })
-    .onError(function () {
-      done();
+    it('simple error caught', function (done) {
+      var err = new Error('this should be caught and handled gracefully');
+      ea.start(function () {
+        throw err;
+      }, {
+        wrapWithTry: true
+      })
+      .thenStart(function () {
+        done('this point should not be reached');
+      })
+      .onError(function (handledErr) {
+        if (err !== handledErr) {
+          done(new Error('error not passed to handler'));
+        }
+        done();
+      });
     });
-  });
 
-  it('handle error of multiple calls back', function (done) {
-    ea.start(function (callback) {
-      callback();
-      callback();
-    })
-    // .thenStart(function (callback) { done();});
-    // this will also work, which is the nature of the double callback error
-    .onError(function () {
-      done();
+    it('simple non-thrown error captured', function (done) {
+      var errMsg = 'this captured and handled gracefully';
+      ea.start(function (callback) {
+        callback(errMsg);
+      })
+      .thenStart(function () {
+        done('this point should not be reached');
+      })
+      .onError(function (err) {
+        if (err !== errMsg) {
+          done(new Error('error message not passed to handler'));
+        }
+        done();
+      });
+    });
+
+    it('error caught after callback', function (done) {
+      ea.start(function (callback) {
+        callback();
+        throw new Error('this should be caught and handled gracefully');
+      })
+      .thenStart(function () {
+        done(new Error('error handler should have been called, and this point not reached.'));
+      })
+      .onError(function () {
+        done();
+      });
+    });
+
+    it('handle error of multiple calls back', function (done) {
+      ea.start(function (callback) {
+        callback();
+        callback();
+      })
+      // .thenStart(function (callback) { done();});
+      // this will also work, which is the nature of the double callback error
+      .onError(function () {
+        done();
+      });
     });
   });
 
