@@ -46,7 +46,7 @@ var arrayCheck = function (array, keyChars, outerCallback) {
     if (arrayAsString === keyChars) {
       return callback();
     }
-    return callback(new Error('expecting ' + keyChars + ' but found ' + arrayAsString));
+    return callback(new Error('expecting (in order) ' + keyChars + ' but found ' + arrayAsString));
   };
 };
 
@@ -77,6 +77,20 @@ describe('easy_async', function () {
     .thenStart(randAsync('f', 10, null, cbArray))
     .thenStart(randAsync('g', 10, null, cbArray))
     .thenStart(arrayCheck(cbArray, 'abcdefg', done));
+  });
+
+  it('mixed series and parallel', function (done) {
+    var cbHash = {};
+    var cbArray = [];
+    ea.start(randAsync('a', 10, cbHash, cbArray))
+    .andStart(randAsync('b', 10, cbHash, null))
+    .thenStart(randAsync('c', 10, cbHash, null))
+    .andStart(randAsync('d', 10, cbHash, cbArray))
+    .thenStart(randAsync('e', 10, cbHash, cbArray))
+    .andStart(randAsync('f', 10, cbHash, null))
+    .andStart(randAsync('g', 10, cbHash, null))
+    .thenStart(hashCheck(cbHash, 'abcdefg'))
+    .thenStart(arrayCheck(cbArray, 'ade', done));
   });
 
   it('add fn to series, but not using chaining', function (done) {
