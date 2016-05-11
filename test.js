@@ -146,10 +146,11 @@ describe('easy_async', function () {
     var series = ea.start(randAsync('a', 10, cbHash));
     series.thenStart(function (callback) {
       callback();
-      process.nextTick(function () {
-        series.andStart(randAsync('b', 10, cbHash));
-        series.thenStart(hashCheck(cbHash, 'ab', done));
-      });
+      setTimeout(function () {
+        series.andStart(function(){
+          done();
+        });
+      }, 15);
     });
   });
 
