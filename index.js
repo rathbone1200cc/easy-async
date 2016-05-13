@@ -10,78 +10,77 @@ exports.start = function (firstFn, startFnOpt) {
     }
   };
 
-  var headOpt = {
-    next: [firstFn || function (callback) {
+  var head = {
+    fns: [firstFn || function (callback) {
       return callback();
     }]
   };
-  var tailOpt = headOpt;
+  var tail = head;
 
   // call the next target function(s), if possible, when appropriate
   var dispatch = function () {
-    if (headOpt.open === 0 && headOpt.nextOpt) { // advance the head, if possible
-      headOpt = headOpt.nextOpt;
+    if (head.open === 0 && head.next) { // advance the head, if possible
+      head = head.next;
     }
-    if (headOpt.dispatching) {
+    if (head.dispatching) {
       return;
     }
-    headOpt.dispatching = true;
-    headOpt.open = headOpt.open || 0;
-    headOpt.callbacks = headOpt.callbacks || [false];
+    head.dispatching = true;
+    head.open = head.open || 0;
+    head.callbacks = head.callbacks || [false];
 
     var dispatchInternal = function (fnIndex) {
-      headOpt.open += 1;
-      headOpt.next[fnIndex](function (err) {
-        if (headOpt.callbacks[fnIndex]) {
+      head.open += 1;
+      head.fns[fnIndex](function (err) {
+        if (head.callbacks[fnIndex]) {
           throw new Error('function called back twice!');
         }
-        headOpt.callbacks[fnIndex] = true;
+        head.callbacks[fnIndex] = true;
         if (err) {
           return dynOpt.onError(err);
         }
-        headOpt.open -= 1;
+        head.open -= 1;
         dispatch();
       });
     };
 
-    for (headOpt.fnIndex = headOpt.fnIndex || 0; headOpt.fnIndex < headOpt.next.length; headOpt.fnIndex += 1) {
-      if (headOpt.wrapWithTry) {
+    for (head.fnIndex = head.fnIndex || 0; head.fnIndex < head.fns.length; head.fnIndex += 1) {
+      if (head.wrapWithTry) {
         // setImmediate(function () {
         try {
-          dispatchInternal(headOpt.fnIndex);
+          dispatchInternal(head.fnIndex);
         } catch (err) {
-          headOpt.open -= 1;
+          head.open -= 1;
           dynOpt.onError(err);
         }
         // });
       } else {
-        dispatchInternal(headOpt.fnIndex);
+        dispatchInternal(head.fnIndex);
       }
     }
-    headOpt.dispatching = false;
+    head.dispatching = false;
   };
 
-  // the 'tail' is the control object
-  // that closes over the necessary context
+  // the controller object closes over the necessary context
   // to allow more tasks to be added
-  var tail = {
+  var controller = {
     // set the next fn, allowing the tail to advance
     thenStart: function (nextTargetFn, fnOpt) {
-      tailOpt.nextOpt = {
-        next: [nextTargetFn]
+      tail.next = {
+        fns: [nextTargetFn]
       };
-      tailOpt = tailOpt.nextOpt;
+      tail = tail.next;
       dispatch();
-      return tail;
+      return controller;
     },
     andStart: function (nextTargetFn, fnOpt) {
-      tailOpt.next.push(nextTargetFn);
+      tail.fns.push(nextTargetFn);
       dispatch();
-      return tail;
+      return controller;
     },
     onError: function (handler) {
       dynOpt.onError = handler;
-      return tail;
+      return controller;
     }
   };
 
@@ -90,5 +89,5 @@ exports.start = function (firstFn, startFnOpt) {
   dispatch();
   // });
 
-  return tail;
+  return controller;
 };

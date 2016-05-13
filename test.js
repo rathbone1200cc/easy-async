@@ -174,7 +174,7 @@ describe('easy_async', function () {
         throw err;
       })
       .thenStart(function () {
-        done('this point should not be reached');
+        done(new Error('this point should not be reached'));
       })
       .onError(function () {
         done(new Error('thrown error should not have been caught'));
