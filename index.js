@@ -7,10 +7,12 @@ exports.start = function (firstFn, startFnOpt) {
     // (and encourage explicit error handling)
     onError: function (err) {
       throw err;
-    }
+    },
+    wrapWithTry: false
   };
 
   var allowedOptions = [
+    'onError',
     'wrapWithTry'
   ];
   var makeOpts = function (fnOptsArg) {
@@ -44,37 +46,36 @@ exports.start = function (firstFn, startFnOpt) {
     head.open = head.open || 0;
     head.callbacks = head.callbacks || [false];
 
-    var dispatchInternal = function (fnIndex, opts) {
+    var dispatchInternal = function (fnIndex) {
       head.open += 1;
-      var callback = function (err) {
-        if (head.callbacks[fnIndex]) {
-          throw new Error('function called back twice!');
-        }
-        head.callbacks[fnIndex] = true;
-        if (err) {
-          return defaultOptions.onError(err);
-        }
-        head.open -= 1;
-        dispatch();
-      };
-      // setImmediate(function () {
+      setImmediate(function () {
+        var opts = makeOpts(head.opts[fnIndex]);
+        var callback = function (err) {
+          if (head.callbacks[fnIndex]) {
+            return opts.onError(new Error('function called back twice!'));
+          }
+          head.callbacks[fnIndex] = true;
+          if (err) {
+            return opts.onError(err);
+          }
+          head.open -= 1;
+          dispatch();
+        };
         if (opts.wrapWithTry) {
           try {
             head.fns[fnIndex](callback);
           } catch (err) {
             head.open -= 1;
-            defaultOptions.onError(err);
+            opts.onError(err);
           }
         } else {
           head.fns[fnIndex](callback);
         }
-      // });
+      });
     };
 
-    var opts;
     for (head.fnIndex = head.fnIndex || 0; head.fnIndex < head.fns.length; head.fnIndex += 1) {
-      opts = makeOpts(head.opts[head.fnIndex]);
-      dispatchInternal(head.fnIndex, opts);
+      dispatchInternal(head.fnIndex);
     }
     head.dispatching = false;
   };

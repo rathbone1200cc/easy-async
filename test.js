@@ -167,24 +167,36 @@ describe('easy_async', function () {
     series.thenStart(hashCheck(cbHash, 'abcde', done));
   });
 
-  it('thrown error not caught', function (done) {
-    var err = new Error('this should be not be caught');
-    try {
-      ea.start(function () {
-        throw err;
-      })
-      .thenStart(function () {
-        done(new Error('this point should not be reached'));
-      })
-      .onError(function () {
-        done(new Error('thrown error should not have been caught'));
-      });
-    } catch (caughtErr) {
-      if (caughtErr !== err) {
-        throw new Error('unexpected error caught');
+  // no easy way to test this automatically
+  // change xit to it, verify that the unhandled error bubbles out
+  xit('thrown error not caught by easy-async', function (done) {
+    var err = new Error('this should be unhandled - not caught by easy-async');
+    ea.start(function () {
+      throw err;
+    })
+    .thenStart(function () {
+      done(new Error('this point should not be reached'));
+    })
+    .onError(function () {
+      done(new Error('thrown error should not have been caught'));
+    });
+    setImmediate(done);
+  });
+
+  it('simple non-thrown error captured', function (done) {
+    var errMsg = 'this captured and handled gracefully';
+    ea.start(function (callback) {
+      callback(errMsg);
+    })
+    .thenStart(function () {
+      done('this point should not be reached');
+    })
+    .onError(function (err) {
+      if (err !== errMsg) {
+        done(new Error('error message not passed to handler'));
       }
       done();
-    }
+    });
   });
 
   describe('wrapWithTry', function () {
@@ -207,26 +219,12 @@ describe('easy_async', function () {
       });
     });
 
-    it('simple non-thrown error captured', function (done) {
-      var errMsg = 'this captured and handled gracefully';
-      ea.start(function (callback) {
-        callback(errMsg);
-      })
-      .thenStart(function () {
-        done('this point should not be reached');
-      })
-      .onError(function (err) {
-        if (err !== errMsg) {
-          done(new Error('error message not passed to handler'));
-        }
-        done();
-      });
-    });
-
     it('error caught after callback', function (done) {
       ea.start(function (callback) {
         callback();
         throw new Error('this should be caught and handled gracefully');
+      }, {
+        wrapWithTry: true
       })
       .thenStart(function () {
         done(new Error('error handler should have been called, and this point not reached.'));
