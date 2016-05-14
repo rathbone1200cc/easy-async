@@ -2,7 +2,7 @@
 
 exports.start = function (firstFn, startFnOpt) {
 
-  var dynOpt = {
+  var defaultOptions = {
     // default error handler will throw errors, to fail fast
     // (and encourage explicit error handling)
     onError: function (err) {
@@ -10,10 +10,25 @@ exports.start = function (firstFn, startFnOpt) {
     }
   };
 
+  var allowedOptions = [
+    'wrapWithTry'
+  ];
+  var makeOpts = function (fnOptsArg) {
+    var fnOpts = fnOptsArg || {};
+    var opts = {};
+    var opt;
+    for (var i = 0; i < allowedOptions.length; i += 1) {
+      opt = allowedOptions[i];
+      opts[opt] = typeof fnOpts[opt] === 'undefined' ? defaultOptions[opt] : fnOpts[opt];
+    }
+    return opts;
+  };
+
   var head = {
     fns: [firstFn || function (callback) {
       return callback();
-    }]
+    }],
+    opts: [startFnOpt]
   };
   var tail = head;
 
@@ -29,34 +44,37 @@ exports.start = function (firstFn, startFnOpt) {
     head.open = head.open || 0;
     head.callbacks = head.callbacks || [false];
 
-    var dispatchInternal = function (fnIndex) {
+    var dispatchInternal = function (fnIndex, opts) {
       head.open += 1;
-      head.fns[fnIndex](function (err) {
+      var callback = function (err) {
         if (head.callbacks[fnIndex]) {
           throw new Error('function called back twice!');
         }
         head.callbacks[fnIndex] = true;
         if (err) {
-          return dynOpt.onError(err);
+          return defaultOptions.onError(err);
         }
         head.open -= 1;
         dispatch();
-      });
+      };
+      // setImmediate(function () {
+        if (opts.wrapWithTry) {
+          try {
+            head.fns[fnIndex](callback);
+          } catch (err) {
+            head.open -= 1;
+            defaultOptions.onError(err);
+          }
+        } else {
+          head.fns[fnIndex](callback);
+        }
+      // });
     };
 
+    var opts;
     for (head.fnIndex = head.fnIndex || 0; head.fnIndex < head.fns.length; head.fnIndex += 1) {
-      if (head.wrapWithTry) {
-        // setImmediate(function () {
-        try {
-          dispatchInternal(head.fnIndex);
-        } catch (err) {
-          head.open -= 1;
-          dynOpt.onError(err);
-        }
-        // });
-      } else {
-        dispatchInternal(head.fnIndex);
-      }
+      opts = makeOpts(head.opts[head.fnIndex]);
+      dispatchInternal(head.fnIndex, opts);
     }
     head.dispatching = false;
   };
@@ -67,7 +85,8 @@ exports.start = function (firstFn, startFnOpt) {
     // set the next fn, allowing the tail to advance
     thenStart: function (nextTargetFn, fnOpt) {
       tail.next = {
-        fns: [nextTargetFn]
+        fns: [nextTargetFn],
+        opts: [fnOpt]
       };
       tail = tail.next;
       dispatch();
@@ -75,19 +94,18 @@ exports.start = function (firstFn, startFnOpt) {
     },
     andStart: function (nextTargetFn, fnOpt) {
       tail.fns.push(nextTargetFn);
+      tail.opts.push(fnOpt);
       dispatch();
       return controller;
     },
     onError: function (handler) {
-      dynOpt.onError = handler;
+      defaultOptions.onError = handler;
       return controller;
     }
   };
 
   // start the first task
-  // setImmediate(function () { // setImmediate to be nice to the event loop
   dispatch();
-  // });
 
   return controller;
 };
