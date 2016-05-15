@@ -246,9 +246,10 @@ describe('easy_async', function () {
       });
     });
 
-    it('continueAfterError & error index tracks the count of errors encountered', function (done) {
+    it('error index tracks the count of errors encountered', function (done) {
       var err = new Error('this should be caught and handled gracefully');
-      ea.start(function (callback) {
+      ea.start()
+      .andStart(function (callback) {
         callback(err);
       }, {
         onError: function (handledErr, errorIndex) {
@@ -260,7 +261,7 @@ describe('easy_async', function () {
           }
         }
       })
-      .thenStart(function (callback) {
+      .andStart(function (callback) {
         callback(err);
       }, {
         onError: function (handledErr, errorIndex) {
@@ -270,14 +271,11 @@ describe('easy_async', function () {
           if (errorIndex !== 2) {
             done(new Error('unexpected error index'));
           }
+          done();
         }
       })
-      .thenStart(function () {
-        done();
-      })
       .changeDefaults({
-        wrapWithTry: true,
-        continueAfterError: true
+        wrapWithTry: true
       });
     });
 

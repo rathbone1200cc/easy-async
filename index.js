@@ -14,7 +14,6 @@ exports.start = function (firstFn, startFnOpt) {
 
   var allowedOptions = [
     'onError',
-    'continueAfterError',
     'wrapWithTry'
   ];
   var makeOpts = function (fnOptsArg) {
@@ -48,7 +47,7 @@ exports.start = function (firstFn, startFnOpt) {
       head.open += 1;
       setImmediate(function () {
         var opts = makeOpts(head.opts[fnIndex]);
-        if (!opts.continueAfterError && errorCount > 0) {
+        if (errorCount > 0) {
           return;
         }
         var handleError = function (err) {
@@ -56,15 +55,17 @@ exports.start = function (firstFn, startFnOpt) {
           opts.onError(err, errorCount);
         };
         var callback = function (err) {
-          if (head.callbacks[fnIndex]) {
-            handleError(new Error('function called back twice!'));
-          }
-          head.callbacks[fnIndex] = true;
-          if (err) {
-            handleError(err);
-          }
-          head.open -= 1;
-          setImmediate(dispatch);
+          setImmediate(function () {
+            if (head.callbacks[fnIndex]) {
+              handleError(new Error('function called back twice!'));
+            }
+            head.callbacks[fnIndex] = true;
+            if (err) {
+              handleError(err);
+            }
+            head.open -= 1;
+            setImmediate(dispatch);
+          });
         };
         if (opts.wrapWithTry) {
           try {
