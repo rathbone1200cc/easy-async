@@ -245,6 +245,42 @@ describe('easy_async', function () {
         done();
       });
     });
+
+    it('continueAfterError & error index tracks the count of errors encountered', function (done) {
+      var err = new Error('this should be caught and handled gracefully');
+      ea.start(function (callback) {
+        callback(err);
+      }, {
+        onError: function (handledErr, errorIndex) {
+          if (err !== handledErr) {
+            done(new Error('error not passed to handler'));
+          }
+          if (errorIndex !== 1) {
+            done(new Error('unexpected error index'));
+          }
+        }
+      })
+      .thenStart(function (callback) {
+        callback(err);
+      }, {
+        onError: function (handledErr, errorIndex) {
+          if (err !== handledErr) {
+            done(new Error('error not passed to handler'));
+          }
+          if (errorIndex !== 2) {
+            done(new Error('unexpected error index'));
+          }
+        }
+      })
+      .thenStart(function () {
+        done();
+      })
+      .changeDefaults({
+        wrapWithTry: true,
+        continueAfterError: true
+      });
+    });
+
   });
 
 });

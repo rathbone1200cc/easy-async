@@ -2,6 +2,7 @@
 
 exports.start = function (firstFn, startFnOpt) {
 
+  var errorCount = 0;
   var defaultOptions = {
     // default error handler will throw errors, to fail fast
     // (and encourage explicit error handling)
@@ -13,6 +14,7 @@ exports.start = function (firstFn, startFnOpt) {
 
   var allowedOptions = [
     'onError',
+    'continueAfterError',
     'wrapWithTry'
   ];
   var makeOpts = function (fnOptsArg) {
@@ -39,10 +41,6 @@ exports.start = function (firstFn, startFnOpt) {
     if (head.open === 0 && head.next) { // advance the head, if possible
       head = head.next;
     }
-    if (head.dispatching) {
-      return;
-    }
-    head.dispatching = true;
     head.open = head.open || 0;
     head.callbacks = head.callbacks || [false];
 
@@ -50,23 +48,30 @@ exports.start = function (firstFn, startFnOpt) {
       head.open += 1;
       setImmediate(function () {
         var opts = makeOpts(head.opts[fnIndex]);
+        if (!opts.continueAfterError && errorCount > 0) {
+          return;
+        }
+        var handleError = function (err) {
+          errorCount += 1;
+          opts.onError(err, errorCount);
+        };
         var callback = function (err) {
           if (head.callbacks[fnIndex]) {
-            return opts.onError(new Error('function called back twice!'));
+            handleError(new Error('function called back twice!'));
           }
           head.callbacks[fnIndex] = true;
           if (err) {
-            return opts.onError(err);
+            handleError(err);
           }
           head.open -= 1;
-          dispatch();
+          setImmediate(dispatch);
         };
         if (opts.wrapWithTry) {
           try {
             head.fns[fnIndex](callback);
           } catch (err) {
             head.open -= 1;
-            opts.onError(err);
+            handleError(err);
           }
         } else {
           head.fns[fnIndex](callback);
@@ -77,7 +82,6 @@ exports.start = function (firstFn, startFnOpt) {
     for (head.fnIndex = head.fnIndex || 0; head.fnIndex < head.fns.length; head.fnIndex += 1) {
       dispatchInternal(head.fnIndex);
     }
-    head.dispatching = false;
   };
 
   // the controller object closes over the necessary context
@@ -101,6 +105,10 @@ exports.start = function (firstFn, startFnOpt) {
     },
     onError: function (handler) {
       defaultOptions.onError = handler;
+      return controller;
+    },
+    changeDefaults: function (newDefaults) {
+      defaultOptions = makeOpts(newDefaults);
       return controller;
     }
   };
