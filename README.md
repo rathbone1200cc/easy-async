@@ -65,19 +65,19 @@ The easy-fix module exports only one method: `start`.  The `start` method return
 
 ## `start(callback, options)`
 
-Creates the control object, which has the following methods. The `options` are the same as `thenStart` and `andStart`, and listed in the Options section below. Unlike the other methods, just as a convenience, the `callback` can be null.
+Create and return the control object, and start the `callback` task.  The control object has the other methods listed here. The `options` are the same as `thenStart` and `andStart` methods (listed below). As a convenience, the `callback` can be null.
 
 The `callback` is called with exactly one argument (a callback) which it must call to continue the easy-fix asynchronous task execution.
 
-## `thenStart(callback, options)
+## `thenStart(callback, options)`
 
-Run the `callback` in series, after all previous callbacks to `thenStart` and `andStart` have completed.
+Run the `callback` after all previous callbacks to `thenStart` and `andStart` have completed.  Use this to declare tasks to run in series.
 
 The `callback` is called with exactly one argument (a callback) which it must call to continue the easy-fix asynchronous task execution.
 
 ## `andStart(callback, options)`
 
-Run the `callback` in parallel with a previous callback from `thenStart`, as well as any other other callbacks from successive calls to `andStart`.
+Run the `callback` in parallel with a previous callback from `thenStart`, as well as any other other callbacks from successive calls to `andStart`. Use this to declare tasks to execute in parallel.
 
 The `callback` is called with exactly one argument (a callback) which it must call to continue the easy-fix asynchronous task execution.
 
@@ -87,10 +87,10 @@ Specify a custom error handler.  The default error handler simply throws the err
 
 The error handler `callback` is called with two arguments: `(error, errorIndex)`.
 
-The `error` is the same error that was passed in to any task callback, or caught by a try/catch block, if `wrapWithTry` is specified as an option.
+The `error` is the same error that was passed in to any task callback or caught by a try/catch block (when `wrapWithTry` is specified as an option).
 
 The `errorIndex` is a count (starting at 1) of all errors encountered by this control object.
-For example, if easy-async is used to coordinate multiple tasks in parallel to respond to a web request, and several of the tasks generate errors, the `errorIndex` may be used to guarantee that the error handler will only attempt to respond once to that web request.
+As an example use case, easy-async may be used to coordinate multiple tasks in parallel when preparing a response to a single web request. Several of the tasks may generate errors - and the `errorIndex` may be used to guarantee that the error handler will only attempt to respond once to that web request.
 
 ## `changeDefaults(options)`
 
@@ -100,8 +100,8 @@ Specify new default options, which apply to all futher tasks added with `thenSta
 
 Options can be specified per-task, or by calling the `changeDefaults` method.
 
-  `wrapWithTry` - If true, tasks will be wrapped in a try/catch block, and caught errors passed through the `onError` handler. Default is `false`.
-  `onError` - specify a custom error handler.  The default error handler simply throws the error.
+* `wrapWithTry` - If true, tasks will be wrapped in a try/catch block, and caught errors passed through the `onError` handler. Default is `false`.
+* `onError` - specify a custom error handler.  The default error handler simply throws the error.
 
 # Stay up to date
 
