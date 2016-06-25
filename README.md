@@ -6,58 +6,71 @@ Like Promises, you get a "control object" that wraps an asynchronous task. The c
 
 Like async.js, easy-async will NOT attempt to plumb arguments through your tasks.  Also like async.js, the tasks will fail fast if any task produces an error.
 
+## Quickstart
+
+Get started with easy-async:
+
+    npm install --save easy-async
+
 # Examples
 
 You can see the examples [together in a script here](example.js)
 
 Tasks receive only one parameter, the callback provided by easy-async.  Each task must call the callback, and easy-async will only look for one single argument and assume it's an error.
 
-    var exampleTask = function(callback){
-      console.log('starting task');
-      setTimeout(function(){
-        console.log('done with task');
-        callback();
-      }, 1000);
-    }
+``` javascript
+var exampleTask = function(callback){
+  console.log('starting task');
+  setTimeout(function(){
+    console.log('done with task');
+    callback();
+  }, 1000);
+}
 
-    var exampleErrorTask = function(callback){
-      console.log('starting task');
-      setTimeout(function(){
-        callback(new Error('BOOM!'));
-      }, 1000);
-    };
+var exampleErrorTask = function(callback){
+  console.log('starting task');
+  setTimeout(function(){
+    callback(new Error('BOOM!'));
+  }, 1000);
+};
+```
 
 To run through tasks in series, get the control object with 'start', then line up tasks with the 'thenStart' method on the control object:
 
-    easyAsync.start(exampleTask)
-    .thenStart(exampleTask)
-    .thenStart(exampleTask)
-    .thenStart(function() {
-      console.log('continuing after tasks in series');
-    });
+``` javascript
+easyAsync.start(exampleTask)
+.thenStart(exampleTask)
+.thenStart(exampleTask)
+.thenStart(function() {
+  console.log('continuing after tasks in series');
+});
+```
 
 To run tasks in parallel, use the 'andStart' method on the control object:
 
-    easyAsync.start(exampleTask)
-    .andStart(exampleTask)
-    .andStart(exampleTask)
-    .thenStart(function() {
-      console.log('continuing after tasks in parallel');
-    });
+``` javascript
+easyAsync.start(exampleTask)
+.andStart(exampleTask)
+.andStart(exampleTask)
+.thenStart(function() {
+  console.log('continuing after tasks in parallel');
+});
+```
 
 To attach an error handler, use the 'onError' method on the control object:
 
-
-    easyAsync.start(exampleTask)
-    .andStart(exampleTask)
-    .andStart(exampleErrorTask)
-    .thenStart(function() {
-      console.log('continuing after risky work');
-    })
-    .onError(function(err){
-      console.log('error handler received an error');
-      console.error(err);
-    });
+``` javascript
+easyAsync.start(exampleTask)
+.andStart(exampleTask)
+.andStart(exampleErrorTask)
+.thenStart(function() {
+  console.log('continuing after risky work');
+})
+.onError(function(err){
+  console.log('error handler received an error');
+  console.error(err);
+});
+```
 
 # API
 
@@ -107,4 +120,20 @@ Options can be specified per-task, or by calling the `changeDefaults` method.
 
 As of June 2016, the new easy-async v1 has some very prudent *breaking changes* (and new features)!
 Please read the [change log](CHANGELOG.md)!
+
+# Shout out
+
+Thanks to [Scott](https://github.com/scottnonnenberg) and [Jamie](https://github.com/uipoet) for advice on this project.
+
+# License
+
+The MIT License (MIT)
+
+Copyright (c) 2016 - Dan Rathbone <rathbone1200cc@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
