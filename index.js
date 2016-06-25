@@ -1,109 +1,121 @@
 'use strict';
 
-var defaultErrorHandler = function(err, msg) {
-  if (msg) {
-    console.error(msg);
-  }
-  if (err.stack) {
-    console.error(err.stack);
-  }
-  else {
-    console.error(err);
-  }
-};
+exports.start = function (firstFn, startFnOpt) {
 
-exports.start = function(firstFn) {
-
-  var dynOpt = {
-    onError: defaultErrorHandler
-  };
-  var headOpt, tailOpt;
-  headOpt = tailOpt = {
-    //key: 'head',
-    next: [firstFn]
+  var errorCount = 0;
+  var defaultOptions = {
+    // default error handler will throw errors, to fail fast
+    // (and encourage explicit error handling)
+    onError: function (err) {
+      throw err;
+    },
+    wrapWithTry: false
   };
 
-  function dispatch(opt) { // call the target function
-    opt.open = opt.open || 0;
-    opt.callbacks = opt.callbacks || [false];
+  var allowedOptions = [
+    'onError',
+    'wrapWithTry'
+  ];
+  var makeOpts = function (fnOptsArg) {
+    var fnOpts = fnOptsArg || {};
+    var opts = {};
+    var opt;
+    for (var i = 0; i < allowedOptions.length; i += 1) {
+      opt = allowedOptions[i];
+      opts[opt] = typeof fnOpts[opt] === 'undefined' ? defaultOptions[opt] : fnOpts[opt];
+    }
+    return opts;
+  };
 
-    function dispatchInternal(fnIndex) {
-      opt.open += 1;
-      process.nextTick(function(){
-        try {
-          opt.next[fnIndex](function(err) {
-            if (opt.callbacks[fnIndex]) {
-              throw new Error('function called back twice!');
-            } // helper, can be removed
-            opt.callbacks[fnIndex] = true;
+  var head = {
+    fns: [firstFn || function (callback) {
+      return callback();
+    }],
+    opts: [startFnOpt]
+  };
+  var tail = head;
 
-            if (err) {
-              return dynOpt.onError(err);
-            }
+  // call the next target function(s), if possible, when appropriate
+  var dispatch = function () {
+    if (head.open === 0 && head.next) { // advance the head, if possible
+      head = head.next;
+    }
+    head.open = head.open || 0;
+    head.callbacks = head.callbacks || [false];
 
-            opt.open -= 1;
-
-            if (opt.open === 0) { // start the next fn, if possible
-              opt.complete = true;
-              if (opt.nextOpt) {
-                //opt.hasCalledNext = true;  // helper, can be removed
-                dispatch(opt.nextOpt);
-              }
-            }
-          });
+    var dispatchInternal = function (fnIndex) {
+      head.open += 1;
+      setImmediate(function () {
+        var opts = makeOpts(head.opts[fnIndex]);
+        if (errorCount > 0) {
+          return;
         }
-        catch (err) {
-          opt.open -= 1;
-          dynOpt.onError(err);
+        var handleError = function (err) {
+          errorCount += 1;
+          opts.onError(err, errorCount);
+        };
+        var callback = function (err) {
+          setImmediate(function () {
+            if (head.callbacks[fnIndex]) {
+              handleError(new Error('function called back twice!'));
+            }
+            head.callbacks[fnIndex] = true;
+            if (err) {
+              handleError(err);
+            }
+            head.open -= 1;
+            setImmediate(dispatch);
+          });
+        };
+        if (opts.wrapWithTry) {
+          try {
+            head.fns[fnIndex](callback);
+          } catch (err) {
+            head.open -= 1;
+            handleError(err);
+          }
+        } else {
+          head.fns[fnIndex](callback);
         }
       });
-    }
-
-    for (opt.fnIndex = opt.fnIndex || 0; opt.fnIndex < opt.next.length; opt.fnIndex += 1) {
-      dispatchInternal(opt.fnIndex);
-    }
-  }
-
-  function makeTail() {
-
-    return {
-      // set the next fn, allowing the tail to advance
-      then: function(nextTargetFn) {
-        tailOpt.nextOpt = {};
-        var needsDispatch = tailOpt.complete ? true : false;
-        if (tailOpt.fnIndex) {
-          dispatch(tailOpt);
-        }
-        tailOpt = tailOpt.nextOpt;
-        tailOpt.next = [nextTargetFn];
-        //tailOpt.key = nextTargetFn.key  // helper, can be removed
-        tail = makeTail();
-        if (needsDispatch) {
-          dispatch(tailOpt);
-        }
-        return tail;
-      },
-      and: function(nextTargetFn, fnOpt) {
-        if (tailOpt.complete) {
-          return tail.then(nextTargetFn, fnOpt);
-        } // restart new step
-        tailOpt.next.push(nextTargetFn);
-        if (tailOpt.fnIndex) {
-          dispatch(tailOpt);
-        } // other parallel fns already kicked off.
-        return tail;
-      },
-      onError: function(handler) {
-        dynOpt.onError = handler;
-        return tail;
-      }
     };
-  }
 
-  var tail = makeTail();
+    for (head.fnIndex = head.fnIndex || 0; head.fnIndex < head.fns.length; head.fnIndex += 1) {
+      dispatchInternal(head.fnIndex);
+    }
+  };
 
-  process.nextTick(function() { //nextTick to be nice to the event loop
-    dispatch(headOpt);
-  });
-  return tail;
+  // the controller object closes over the necessary context
+  // to allow more tasks to be added
+  var controller = {
+    // set the next fn, allowing the tail to advance
+    thenStart: function (nextTargetFn, fnOpt) {
+      tail.next = {
+        fns: [nextTargetFn],
+        opts: [fnOpt]
+      };
+      tail = tail.next;
+      dispatch();
+      return controller;
+    },
+    andStart: function (nextTargetFn, fnOpt) {
+      tail.fns.push(nextTargetFn);
+      tail.opts.push(fnOpt);
+      dispatch();
+      return controller;
+    },
+    onError: function (handler) {
+      defaultOptions.onError = handler;
+      return controller;
+    },
+    changeDefaults: function (newDefaults) {
+      defaultOptions = makeOpts(newDefaults);
+      return controller;
+    }
+  };
+
+  // start the first task
+  dispatch();
+
+  return controller;
 };
